@@ -197,3 +197,5 @@ npm run dev
 npm run build
 ```
 Navigate to `http://localhost:5173` to see the live login screen. Click **"Auto-fill Demo Credentials"** to log in and explore the full sidebar navigation and route stubs.
+#   I n v e n t o r y - M a n a g e m e n t - S y s t e m  
+ 
