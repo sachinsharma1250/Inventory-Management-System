@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # StockSense — Modular Inventory Management System (IMS)
 
 A real-time, multi-warehouse inventory management system scaffold built for rapid, non-conflicting parallel development during an 8-hour hackathon.
@@ -199,3 +200,176 @@ npm run build
 Navigate to `http://localhost:5173` to see the live login screen. Click **"Auto-fill Demo Credentials"** to log in and explore the full sidebar navigation and route stubs.
 #   I n v e n t o r y - M a n a g e m e n t - S y s t e m  
  
+=======
+# StockSense — Inventory Management System
+
+A full-stack, modular Inventory Management System (IMS) that replaces manual registers, Excel sheets, and scattered tracking with a centralized, real-time web app.
+
+## Tech Stack
+
+| Layer        | Technology                                       |
+|-------------|--------------------------------------------------|
+| Frontend    | React 18 + Vite + TypeScript, Tailwind CSS, React Router, React Query |
+| Backend     | Node.js + Express + TypeScript                    |
+| Database    | PostgreSQL + Prisma ORM                           |
+| Auth        | JWT (access + refresh tokens), bcrypt, OTP-based password reset |
+| Monorepo    | npm workspaces: `/apps/web`, `/apps/api`, `/packages/shared` |
+
+## Features
+
+- **Authentication**: Sign up, login, OTP-based password reset (console-logged for dev)
+- **Dashboard**: KPI cards (total products, low/out of stock, pending receipts/deliveries/transfers), low stock alerts
+- **Product Management**: CRUD with categories, UoM, per-location stock, reorder rules
+- **Receipts**: Incoming goods from suppliers with validation → auto stock increase
+- **Delivery Orders**: Outgoing goods with Pick → Pack → Validate workflow → auto stock decrease
+- **Internal Transfers**: Move stock between locations (total unchanged, location-scoped)
+- **Stock Adjustments**: Correct mismatches between recorded & physical count
+- **Move History**: Full ledger of every stock movement, filterable by type/product/date
+- **Warehouse Settings**: Multi-warehouse with hierarchical locations
+- **Profile Management**: View/edit profile, change password
+
+## Prerequisites
+
+- Node.js >= 18
+- PostgreSQL >= 14
+- npm >= 9
+
+## Setup
+
+### 1. Clone and install dependencies
+
+```bash
+cd Stock
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example apps/api/.env
+# Edit apps/api/.env with your PostgreSQL credentials
+```
+
+Key variables:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/stocksense` |
+| `JWT_SECRET` | JWT signing secret | (set your own) |
+| `JWT_REFRESH_SECRET` | Refresh token secret | (set your own) |
+| `PORT` | API port | `3001` |
+| `CORS_ORIGIN` | Frontend URL | `http://localhost:5173` |
+
+### 3. Create the database
+
+```bash
+createdb stocksense
+# Or via psql: CREATE DATABASE stocksense;
+```
+
+### 4. Run migrations and seed
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
+
+### 5. Start the app
+
+```bash
+npm run dev
+```
+
+This starts both:
+- **API** at http://localhost:3001
+- **Frontend** at http://localhost:5173
+
+## Demo Credentials
+
+| Role    | Email                     | Password    |
+|---------|---------------------------|-------------|
+| Admin   | admin@stocksense.com      | password123 |
+| Manager | manager@stocksense.com    | password123 |
+| Staff   | staff@stocksense.com      | password123 |
+
+## Project Structure
+
+```
+Stock/
+├── apps/
+│   ├── api/                  # Express backend
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma # Database schema
+│   │   │   └── seed.ts       # Seed data
+│   │   └── src/
+│   │       ├── index.ts      # App entry
+│   │       ├── middleware/    # Auth middleware
+│   │       ├── routes/        # All API routes
+│   │       ├── utils/         # Prisma client, helpers
+│   │       └── __tests__/     # Validation tests
+│   └── web/                  # React frontend
+│       └── src/
+│           ├── components/    # Reusable components (DataTable, StatusBadge, Modal, Layout, Sidebar)
+│           ├── context/       # Auth context
+│           ├── lib/           # API client
+│           └── pages/         # All page components
+├── packages/
+│   └── shared/               # Shared TypeScript types
+├── .env.example
+└── package.json              # Root workspace config
+```
+
+## API Routes
+
+### Public
+- `POST /auth/signup` — Register
+- `POST /auth/login` — Login
+- `POST /auth/otp/request` — Request OTP
+- `POST /auth/otp/verify` — Verify OTP
+- `POST /auth/reset-password` — Reset password
+
+### Protected (JWT required)
+- `GET /dashboard/kpis` — Dashboard KPIs
+- `GET /dashboard/filters` — Available filters
+- `GET/POST/PUT/DELETE /products` — Product CRUD
+- `GET /products/:id/stock` — Per-location stock
+- `GET/POST/PUT/DELETE /categories` — Category CRUD
+- `GET/POST /receipts` — List/create receipts
+- `GET/PUT /receipts/:id` — Get/update receipt
+- `POST /receipts/:id/validate` — Validate receipt (stock +)
+- `GET/POST /delivery-orders` — List/create deliveries
+- `GET/PUT /delivery-orders/:id` — Get/update delivery
+- `POST /delivery-orders/:id/pick` — Pick items
+- `POST /delivery-orders/:id/pack` — Pack items
+- `POST /delivery-orders/:id/validate` — Validate delivery (stock -)
+- `GET/POST /transfers` — List/create transfers
+- `POST /transfers/:id/validate` — Validate transfer
+- `GET/POST /adjustments` — List/create adjustments
+- `POST /adjustments/:id/validate` — Validate adjustment
+- `GET /move-history` — Move history with filters
+- `GET/POST/PUT /warehouses` — Warehouse CRUD
+- `GET/POST/PUT /locations` — Location CRUD
+- `GET/PUT /profile` — User profile
+
+## Testing
+
+```bash
+npm run test
+```
+
+Tests cover the critical "validate" endpoints to ensure stock correctness:
+- Receipt validation → stock increases at destination
+- Delivery validation → stock decreases at source (+ insufficient stock rejection)
+- Transfer validation → stock moves between locations (total unchanged)
+- Adjustment validation → stock corrected to counted quantity
+
+## Assumptions
+
+1. **Supplier/Customer IDs**: Stored as plain strings (not foreign keys) since supplier/customer management is out of scope. In production, these would reference separate supplier/customer tables.
+2. **OTP Delivery**: OTP codes are logged to the console in dev. In production, integrate an email service (SendGrid, AWS SES, etc.).
+3. **Authorization**: All authenticated users can access all features. Role-based access control (RBAC) is modeled (role field exists) but not enforced at the route level — extend middleware for production.
+4. **Reference Numbers**: Auto-generated with date + counter format. The counter resets when the server restarts; use a DB sequence for production.
+5. **File Uploads**: Product images are not included. Add multer + S3/local storage if needed.
+6. **Pagination**: Default page size is 20 for most lists, 30 for move history.
+# Inventory-Management-System
+>>>>>>> fec53b6 (UX change)
