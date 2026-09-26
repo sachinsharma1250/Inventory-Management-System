@@ -7,12 +7,15 @@ export type DocStatus = "draft" | "waiting" | "ready" | "done" | "cancelled"
 
 export type RefType = "receipt" | "delivery" | "transfer" | "adjustment"
 
+export type UserRole = "manager" | "staff" | "admin"
+
 export interface Warehouse {
   id: string
   name: string
   shortCode: string
   address: string
   createdAt?: string | number
+  updatedAt?: string | number
 }
 
 export interface Location {
@@ -21,6 +24,7 @@ export interface Location {
   shortCode: string
   warehouseId: string
   createdAt?: string | number
+  updatedAt?: string | number
 }
 
 export interface ProductCategory {
@@ -130,9 +134,10 @@ export interface UserProfile {
   uid: string
   email: string
   displayName?: string
-  role?: "manager" | "staff" | "admin"
+  role: UserRole
   warehouseId?: string
   createdAt?: string | number
+  updatedAt?: string | number
 }
 
 export interface DashboardKPIs {
@@ -142,4 +147,15 @@ export interface DashboardKPIs {
   pendingReceiptsCount: number
   pendingDeliveriesCount: number
   scheduledTransfersCount: number
+}
+
+// Dashboard Dynamic Filter State
+export type DocTypeFilter = "all" | "receipts" | "deliveries" | "transfers" | "adjustments"
+export type StatusFilter = "all" | "draft" | "waiting" | "ready" | "done" | "cancelled"
+
+export interface DashboardFiltersState {
+  docType: DocTypeFilter
+  status: StatusFilter
+  warehouseId: string
+  categoryId: string
 }

@@ -12,13 +12,30 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Starter rule: Require authentication on all collections for StockSense
-    match /warehouses/{warehouseId} {
-      allow read, write: if isAuthenticated();
+    // Helper function: Retrieve user profile document
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // Helper function: Check if user has manager role
+    function isManager() {
+      return isAuthenticated() && (
+        request.auth.token.role == "manager" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().role == "manager")
+      );
+    }
+
+    // Warehouses: only authenticated users read; only role == "manager" write
+    match /warehouses/{warehouseId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    // Locations: only authenticated users read; only role == "manager" write
     match /locations/{locationId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isManager();
     }
 
     match /products/{productId} {
@@ -50,14 +67,21 @@ service cloud.firestore {
     }
 
     match /stock_ledger/{ledgerId} {
-      // Ledger entries should typically be append-only in production
       allow read, create: if isAuthenticated();
-      allow update, delete: if isAuthenticated(); // Permissive for hackathon development
+      allow update, delete: if isAuthenticated();
     }
 
+    // Users: role defaults to "staff" on creation, only managers may escalate roles
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId) && (
+        request.resource.data.role == "staff" || isManager()
+      );
+      allow update: if isOwner(userId) && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+        isManager()
+      );
+      allow delete: if isManager();
     }
   }
 }

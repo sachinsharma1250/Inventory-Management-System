@@ -9,46 +9,67 @@ import {
   confirmPasswordReset as fbConfirmPasswordReset,
   updateProfile,
 } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { doc, getDoc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
+import type { UserProfile, UserRole } from "@/types"
 
 export interface AuthContextType {
   user: User | null
+  userProfile: UserProfile | null
   token: string | null
+  role: UserRole
+  isManager: boolean
   loading: boolean
   isMockAuth: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (email: string, password: string, displayName?: string) => Promise<void>
+  signup: (email: string, password: string, displayName?: string, initialRole?: UserRole) => Promise<void>
   logout: () => Promise<void>
   sendPasswordResetOtp: (email: string) => Promise<void>
   confirmPasswordResetWithOtp: (code: string, newPassword: string) => Promise<void>
+  setMockRole?: (newRole: UserRole) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const LOCAL_STORAGE_MOCK_USER_KEY = "stocksense_mock_user"
 const LOCAL_STORAGE_MOCK_TOKEN_KEY = "stocksense_jwt_token"
+const LOCAL_STORAGE_MOCK_ROLE_KEY = "stocksense_mock_role"
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [role, setRole] = useState<UserRole>("staff")
   const [loading, setLoading] = useState<boolean>(true)
   const [isMockAuth, setIsMockAuth] = useState<boolean>(false)
 
-  // Listen to Firebase auth state and extract JWT token
+  // Listen to Firebase auth state and extract JWT token + user profile
   useEffect(() => {
-    // Check if we already have a mock user session in local storage for offline/hackathon speed
+    // Check if we have a saved mock user session in local storage
     const savedMockUser = localStorage.getItem(LOCAL_STORAGE_MOCK_USER_KEY)
     const savedMockToken = localStorage.getItem(LOCAL_STORAGE_MOCK_TOKEN_KEY)
+    const savedMockRole = (localStorage.getItem(LOCAL_STORAGE_MOCK_ROLE_KEY) as UserRole) || "manager"
+
     if (savedMockUser && savedMockToken) {
       try {
-        setUser(JSON.parse(savedMockUser))
+        const parsed = JSON.parse(savedMockUser)
+        setUser(parsed)
         setToken(savedMockToken)
+        setRole(savedMockRole)
+        setUserProfile({
+          uid: parsed.uid,
+          email: parsed.email,
+          displayName: parsed.displayName,
+          role: savedMockRole,
+          createdAt: Date.now(),
+        })
         setIsMockAuth(true)
         setLoading(false)
         return
       } catch (e) {
         localStorage.removeItem(LOCAL_STORAGE_MOCK_USER_KEY)
         localStorage.removeItem(LOCAL_STORAGE_MOCK_TOKEN_KEY)
+        localStorage.removeItem(LOCAL_STORAGE_MOCK_ROLE_KEY)
       }
     }
 
@@ -60,13 +81,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(currentUser)
             setToken(jwt)
             localStorage.setItem(LOCAL_STORAGE_MOCK_TOKEN_KEY, jwt)
+
+            // Fetch user profile from Firestore `users` collection to check role
+            try {
+              const userRef = doc(db, "users", currentUser.uid)
+              const userSnap = await getDoc(userRef)
+              if (userSnap.exists()) {
+                const data = userSnap.data() as UserProfile
+                setUserProfile(data)
+                setRole(data.role || "staff")
+              } else {
+                // If profile doesn't exist yet, initialize it with default "staff"
+                const defaultProfile: UserProfile = {
+                  uid: currentUser.uid,
+                  email: currentUser.email || "",
+                  displayName: currentUser.displayName || "",
+                  role: "staff",
+                  createdAt: Date.now(),
+                }
+                await setDoc(userRef, defaultProfile)
+                setUserProfile(defaultProfile)
+                setRole("staff")
+              }
+            } catch (fsErr) {
+              console.warn("Could not fetch user document from Firestore:", fsErr)
+              setRole("staff")
+            }
           } catch (err) {
             console.warn("Could not retrieve Firebase ID Token, using user object", err)
             setUser(currentUser)
+            setRole("staff")
           }
         } else {
           setUser(null)
+          setUserProfile(null)
           setToken(null)
+          setRole("staff")
           localStorage.removeItem(LOCAL_STORAGE_MOCK_TOKEN_KEY)
         }
         setLoading(false)
@@ -79,17 +129,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  // Create mock user session if Firebase Auth is not yet configured or fails
-  const createMockSession = (email: string, displayName?: string) => {
+  // Create mock user session if Firebase Auth is not configured or in fallback mode
+  const createMockSession = (email: string, displayName?: string, customRole: UserRole = "manager") => {
     const mockUid = "usr_" + Math.random().toString(36).substring(2, 9)
-    // Generate a valid base64 mock JWT payload with header, payload and signature
     const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }))
     const payload = btoa(
       JSON.stringify({
         uid: mockUid,
         email,
         name: displayName || email.split("@")[0],
-        role: "manager",
+        role: customRole,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600 * 24,
       })
@@ -115,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         issuedAtTime: new Date().toISOString(),
         expirationTime: new Date(Date.now() + 86400000).toISOString(),
         signInProvider: "password",
-        claims: { role: "manager" },
+        claims: { role: customRole },
       }),
       reload: async () => {},
       toJSON: () => ({ uid: mockUid, email }),
@@ -123,13 +172,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(mockUserObj)
     setToken(mockJwt)
-    setIsMockAuth(true)
-    localStorage.setItem(LOCAL_STORAGE_MOCK_USER_KEY, JSON.stringify({
+    setRole(customRole)
+    setUserProfile({
       uid: mockUid,
       email,
       displayName: displayName || email.split("@")[0],
-    }))
+      role: customRole,
+      createdAt: Date.now(),
+    })
+    setIsMockAuth(true)
+
+    localStorage.setItem(
+      LOCAL_STORAGE_MOCK_USER_KEY,
+      JSON.stringify({
+        uid: mockUid,
+        email,
+        displayName: displayName || email.split("@")[0],
+      })
+    )
     localStorage.setItem(LOCAL_STORAGE_MOCK_TOKEN_KEY, mockJwt)
+    localStorage.setItem(LOCAL_STORAGE_MOCK_ROLE_KEY, customRole)
+  }
+
+  const setMockRole = (newRole: UserRole) => {
+    setRole(newRole)
+    if (userProfile) {
+      setUserProfile({ ...userProfile, role: newRole })
+    }
+    localStorage.setItem(LOCAL_STORAGE_MOCK_ROLE_KEY, newRole)
   }
 
   const login = async (email: string, password: string) => {
@@ -141,8 +211,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(jwt)
       setIsMockAuth(false)
       localStorage.setItem(LOCAL_STORAGE_MOCK_TOKEN_KEY, jwt)
+
+      // Fetch user profile
+      try {
+        const userRef = doc(db, "users", userCredential.user.uid)
+        const snap = await getDoc(userRef)
+        if (snap.exists()) {
+          const profile = snap.data() as UserProfile
+          setUserProfile(profile)
+          setRole(profile.role || "staff")
+        } else {
+          setRole("staff")
+        }
+      } catch (err) {
+        setRole("staff")
+      }
     } catch (err: any) {
-      // If Firebase project API key is default/unconfigured, fall back to mock session for hackathon development
       if (
         err?.code === "auth/api-key-not-valid" ||
         err?.code === "auth/invalid-api-key" ||
@@ -150,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         import.meta.env.VITE_FIREBASE_API_KEY === undefined
       ) {
         console.info("Using development session fallback for login")
-        createMockSession(email)
+        createMockSession(email, undefined, "manager")
       } else {
         throw err
       }
@@ -159,7 +243,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const signup = async (email: string, password: string, displayName?: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    displayName?: string,
+    initialRole: UserRole = "staff" // default "staff" on signup per spec
+  ) => {
     setLoading(true)
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
@@ -171,6 +260,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(jwt)
       setIsMockAuth(false)
       localStorage.setItem(LOCAL_STORAGE_MOCK_TOKEN_KEY, jwt)
+
+      // Create user document in Firestore with role: "staff" (default)
+      const newProfile: UserProfile = {
+        uid: userCredential.user.uid,
+        email,
+        displayName: displayName || "",
+        role: initialRole, // default "staff"
+        createdAt: Date.now(),
+      }
+
+      try {
+        const userRef = doc(db, "users", userCredential.user.uid)
+        await setDoc(userRef, newProfile)
+        setUserProfile(newProfile)
+        setRole(initialRole)
+      } catch (fsErr) {
+        console.warn("Could not save initial user doc to Firestore:", fsErr)
+        setUserProfile(newProfile)
+        setRole(initialRole)
+      }
     } catch (err: any) {
       if (
         err?.code === "auth/api-key-not-valid" ||
@@ -179,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         import.meta.env.VITE_FIREBASE_API_KEY === undefined
       ) {
         console.info("Using development session fallback for signup")
-        createMockSession(email, displayName)
+        createMockSession(email, displayName, initialRole)
       } else {
         throw err
       }
@@ -196,10 +305,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } finally {
       setUser(null)
+      setUserProfile(null)
       setToken(null)
+      setRole("staff")
       setIsMockAuth(false)
       localStorage.removeItem(LOCAL_STORAGE_MOCK_USER_KEY)
       localStorage.removeItem(LOCAL_STORAGE_MOCK_TOKEN_KEY)
+      localStorage.removeItem(LOCAL_STORAGE_MOCK_ROLE_KEY)
       setLoading(false)
     }
   }
@@ -225,7 +337,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await fbConfirmPasswordReset(auth, code, newPassword)
     } catch (err: any) {
-      // In dev fallback, allow 123456 or any 6-digit code
       if (code === "123456" || isMockAuth || import.meta.env.VITE_FIREBASE_API_KEY === undefined) {
         console.info("[Dev OTP Flow] Verification code accepted and password updated.")
         return
@@ -234,11 +345,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const isManager = role === "manager" || role === "admin"
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        userProfile,
         token,
+        role,
+        isManager,
         loading,
         isMockAuth,
         login,
@@ -246,6 +362,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         sendPasswordResetOtp,
         confirmPasswordResetWithOtp,
+        setMockRole,
       }}
     >
       {children}
