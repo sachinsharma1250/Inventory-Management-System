@@ -43,6 +43,7 @@ export interface Product {
   costPerUnit: number
   barcode?: string
   initialStock?: number
+  lowStock?: boolean
   createdAt?: string | number
   updatedAt?: string | number
 }

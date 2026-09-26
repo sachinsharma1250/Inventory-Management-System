@@ -108,6 +108,82 @@ const DashboardContent: React.FC = () => {
         </div>
       </div>
 
+      {/* Wireframe Mockup Reference: Primary Operations Cards (Receipt & Delivery) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Receipt Card */}
+        <Card className="border-zinc-800 bg-zinc-950/80 shadow-xl hover:border-zinc-700 transition-all p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <ArrowDownToLine className="h-5 w-5 text-sky-400" />
+              Receipt
+            </h3>
+            <Badge variant="outline" className="border-sky-800 text-sky-400 text-xs">
+              Incoming
+            </Badge>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <Button
+              onClick={() => navigate("/receipts")}
+              className="h-14 px-6 rounded-xl bg-zinc-900 hover:bg-[#FF5A36] border border-zinc-800 hover:border-[#FF5A36] text-white font-bold text-base shadow-lg transition-all group"
+            >
+              <span className="font-mono text-lg mr-2 text-[#FF5A36] group-hover:text-white">
+                {kpis.receiptsToReceiveCount}
+              </span>
+              to receive
+            </Button>
+
+            <div className="space-y-1.5 text-right font-medium">
+              <p className="text-rose-400 text-sm flex items-center justify-end gap-1.5 font-semibold">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                {kpis.lateReceiptsCount} Late
+              </p>
+              <p className="text-zinc-400 text-xs">
+                {kpis.totalReceiptsCount} operations
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Delivery Card */}
+        <Card className="border-zinc-800 bg-zinc-950/80 shadow-xl hover:border-zinc-700 transition-all p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <ArrowUpFromLine className="h-5 w-5 text-emerald-400" />
+              Delivery
+            </h3>
+            <Badge variant="outline" className="border-emerald-800 text-emerald-400 text-xs">
+              Outgoing
+            </Badge>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <Button
+              onClick={() => navigate("/deliveries")}
+              className="h-14 px-6 rounded-xl bg-zinc-900 hover:bg-[#FF5A36] border border-zinc-800 hover:border-[#FF5A36] text-white font-bold text-base shadow-lg transition-all group"
+            >
+              <span className="font-mono text-lg mr-2 text-[#FF5A36] group-hover:text-white">
+                {kpis.deliveriesToDeliverCount}
+              </span>
+              to Deliver
+            </Button>
+
+            <div className="space-y-1.5 text-right font-medium">
+              <p className="text-rose-400 text-sm flex items-center justify-end gap-1.5 font-semibold">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                {kpis.lateDeliveriesCount} Late
+              </p>
+              <p className="text-amber-400 text-xs font-semibold">
+                {kpis.waitingDeliveriesCount} waiting
+              </p>
+              <p className="text-zinc-400 text-xs">
+                {kpis.totalDeliveriesCount} operations
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       {/* 5 Real-Time KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/* KPI 1: Total Products in Stock */}

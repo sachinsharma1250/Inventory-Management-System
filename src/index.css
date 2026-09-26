@@ -92,3 +92,80 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
+
+/* Animated Sunset Gradient & Frosted Glassmorphism */
+@keyframes sunsetShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(30px, -25px) scale(1.08);
+  }
+}
+
+@keyframes floatReverseSlow {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-30px, 25px) scale(0.95);
+  }
+}
+
+.animate-sunset-gradient {
+  background: linear-gradient(135deg, #0a0e27, #0d1b3e, #0f2347, #112d5a, #0b1a3d, #07122e, #0d1d42, #091530, #060d22);
+  background-size: 300% 300%;
+  animation: sunsetShift 16s ease infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 12s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverseSlow 14s ease-in-out infinite;
+}
+
+.frosted-glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.frosted-glass-overlay {
+  background: linear-gradient(135deg, rgba(13, 37, 80, 0.92), rgba(15, 45, 100, 0.90), rgba(10, 25, 60, 0.95));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.frosted-glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.2s ease;
+}
+
+.frosted-glass-input:focus {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+

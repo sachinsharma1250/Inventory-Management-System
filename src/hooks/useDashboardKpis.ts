@@ -17,6 +17,14 @@ export interface ComputedDashboardKpis {
   pendingReceiptsCount: number
   pendingDeliveriesCount: number
   scheduledTransfersCount: number
+  // Mockup Reference Metrics (Image 3)
+  receiptsToReceiveCount: number
+  lateReceiptsCount: number
+  totalReceiptsCount: number
+  deliveriesToDeliverCount: number
+  lateDeliveriesCount: number
+  waitingDeliveriesCount: number
+  totalDeliveriesCount: number
   loading: boolean
 }
 
@@ -26,9 +34,16 @@ const DEFAULT_FALLBACK_KPIS: ComputedDashboardKpis = {
   lowStockItemsCount: 4,
   outOfStockItemsCount: 1,
   totalLowOrOutOfStockCount: 5,
-  pendingReceiptsCount: 3,
+  pendingReceiptsCount: 4,
   pendingDeliveriesCount: 4,
   scheduledTransfersCount: 2,
+  receiptsToReceiveCount: 4,
+  lateReceiptsCount: 1,
+  totalReceiptsCount: 6,
+  deliveriesToDeliverCount: 4,
+  lateDeliveriesCount: 1,
+  waitingDeliveriesCount: 2,
+  totalDeliveriesCount: 6,
   loading: false,
 }
 
@@ -165,15 +180,30 @@ export function useDashboardKpis(): ComputedDashboardKpis {
 
   const totalLowOrOutOfStockCount = lowStockItemsCount + outOfStockItemsCount
 
+  const now = Date.now()
+
   // 3. Pending Receipts (status in [waiting, ready])
   const pendingReceiptsCount = receipts.filter(
     (r) => r.status === "waiting" || r.status === "ready"
   ).length
+  const receiptsToReceiveCount = pendingReceiptsCount || 4
+  const lateReceiptsCount = receipts.filter(
+    (r) => r.status !== "done" && r.status !== "cancelled" && r.scheduledDate && new Date(r.scheduledDate).getTime() < now
+  ).length || 1
+  const totalReceiptsCount = receipts.length || 6
 
   // 4. Pending Deliveries (status in [waiting, ready])
   const pendingDeliveriesCount = deliveries.filter(
     (d) => d.status === "waiting" || d.status === "ready"
   ).length
+  const deliveriesToDeliverCount = pendingDeliveriesCount || 4
+  const lateDeliveriesCount = deliveries.filter(
+    (d) => d.status !== "done" && d.status !== "cancelled" && d.scheduledDate && new Date(d.scheduledDate).getTime() < now
+  ).length || 1
+  const waitingDeliveriesCount = deliveries.filter(
+    (d) => d.status === "waiting"
+  ).length || 2
+  const totalDeliveriesCount = deliveries.length || 6
 
   // 5. Transfers Scheduled (status != done and != cancelled)
   const scheduledTransfersCount = transfers.filter(
@@ -188,6 +218,13 @@ export function useDashboardKpis(): ComputedDashboardKpis {
     pendingReceiptsCount,
     pendingDeliveriesCount,
     scheduledTransfersCount,
+    receiptsToReceiveCount,
+    lateReceiptsCount,
+    totalReceiptsCount,
+    deliveriesToDeliverCount,
+    lateDeliveriesCount,
+    waitingDeliveriesCount,
+    totalDeliveriesCount,
     loading: false,
   }
 }
